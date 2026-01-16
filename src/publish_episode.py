@@ -209,6 +209,9 @@ def render_episode_html(ep_title: str, mp3_url: str, pubdate: datetime) -> str:
 </body></html>
 """
 
+PODCAST_AUTHOR = "Research Articles Podcast"
+PODCAST_OWNER_EMAIL = "npalamuttam04@gmail.com"
+
 
 def render_feed_xml(episodes: list[dict]) -> str:
     channel_link = public_url_for_key(INDEX_KEY)
@@ -243,13 +246,23 @@ def render_feed_xml(episodes: list[dict]) -> str:
     <description>{escape(PODCAST_DESCRIPTION)}</description>
     <language>en-us</language>
     <link>{escape(channel_link)}</link>
+
+    <!-- Spotify / Apple ownership metadata -->
+    <itunes:author>{escape(PODCAST_AUTHOR)}</itunes:author>
+    <itunes:owner>
+      <itunes:name>{escape(PODCAST_AUTHOR)}</itunes:name>
+      <itunes:email>{escape(PODCAST_OWNER_EMAIL)}</itunes:email>
+    </itunes:owner>
+
     <itunes:explicit>{itunes_explicit}</itunes:explicit>
     <itunes:category text="{escape(ITUNES_CATEGORY)}"/>
     <itunes:image href="{escape(artwork_url)}"/>
+
 {items_str}
   </channel>
 </rss>
 """
+
 
 
 def main():

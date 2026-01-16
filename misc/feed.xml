@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>Research Articles (Private)</title>
+    <description>Automatically generated audio narrations of research papers.</description>
+    <language>en-us</language>
+
+    <!-- HTML webpage -->
+    <link>https://pub-a5957a5cadea41a68cf7caa1cd574bcf.r2.dev/index.html</link>
+
+    <itunes:explicit>false</itunes:explicit>
+    <itunes:category text="Science"/>
+    <itunes:image href="https://pub-a5957a5cadea41a68cf7caa1cd574bcf.r2.dev/artwork/podcast-cover.png"/>
+
+    <item>
+      <title>PEARL — Placing Every Atom in the Right Location</title>
+      <description>Audio narration of the PEARL research paper on protein–ligand structure prediction using foundation models.</description>
+
+      <!-- Episode webpage MUST be HTML -->
+      <link>https://pub-a5957a5cadea41a68cf7caa1cd574bcf.r2.dev/episodes/pearl-001.html</link>
+
+      <enclosure
+        url="https://pub-a5957a5cadea41a68cf7caa1cd574bcf.r2.dev/podcasts/podcast_pearl_tagged.mp3"
+        length="10000000"
+        type="audio/mpeg"/>
+
+      <guid>pearl-001</guid>
+      <pubDate>Wed, 15 Jan 2026 18:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>

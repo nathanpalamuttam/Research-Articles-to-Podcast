@@ -31,6 +31,7 @@ ARXIV_LINKS_FILE = "arxiv_links.txt"
 PROCESSED_LINKS_FILE = "processed_links.txt"
 PDF_DIR = Path("downloads/pdfs")
 OUTPUT_DIR = Path("outputs/audio")
+SCRIPTS_DIR = Path("outputs/scripts")
 MODEL = "models/gemini-2.5-flash"
 VOICE_NAME = "en-US-Studio-O"
 SPEAKING_RATE = 1.0
@@ -132,13 +133,12 @@ STRICT FORMAT REQUIREMENTS:
 - The output should be plain text only
 
 CONTENT GUIDELINES:
-- Start with a motivating introduction
+- Start with a small introduction
 - Clearly explain the problem and why it matters
 - Summarize the key ideas and results
-- Avoid equations unless absolutely necessary
+- Focus on the methodologies
 - Use intuitive analogies and explanations
 - End with implications and future research directions
-- Focus on the methodologies
 
 PAPER:
 {paper_text}
@@ -269,6 +269,13 @@ def process_paper(arxiv_url: str, api_key: str):
     print(f"\n🤖 Generating podcast script with {MODEL}...")
     script = generate_script(api_key, paper_text)
     print("   ✓ Script generated")
+
+    # Save raw script
+    SCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
+    script_filename = f"{info['title']}_script.txt"
+    script_path = SCRIPTS_DIR / script_filename
+    script_path.write_text(script, encoding='utf-8')
+    print(f"   ✓ Script saved to: {script_path}")
 
     # Clean script
     print("\n📝 Cleaning script...")

@@ -1,0 +1,365 @@
+"""
+Generate podcast audio from arXiv research papers.
+
+Pipeline:
+1. Read arXiv links from arxiv_links.txt
+2. Download PDFs for new links
+3. Extract text from PDF
+4. Generate script using Gemini
+5. Synthesize to MP3 using Google Cloud TTS
+"""
+
+import os
+import re
+import requests
+from pathlib import Path
+from dotenv import load_dotenv
+from google import genai
+from google.cloud import texttospeech
+import PyPDF2
+import feedparser
+
+
+# ============================================================================
+# Configuration
+# ============================================================================
+
+ARXIV_LINKS_FILE = "arxiv_links.txt"
+PROCESSED_LINKS_FILE = "processed_links.txt"
+PDF_DIR = Path("downloads/pdfs")
+OUTPUT_DIR = Path("outputs/audio")
+MODEL = "models/gemini-2.5-flash"
+VOICE_NAME = "en-US-Studio-O"
+SPEAKING_RATE = 1.0
+MAX_TEXT_LENGTH = 30000
+
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
+
+def clean_script(script: str) -> str:
+    """Clean script text for TTS."""
+    lines = script.splitlines()
+    clean_lines = []
+
+    for line in lines:
+        line = line.strip()
+
+        # Skip stage directions
+        if "Intro Music" in line or "Sound of" in line or "Outro music" in line:
+            continue
+        if line.startswith("(") and line.endswith(")"):
+            continue
+
+        # Clean formatting
+        clean = (
+            line.replace("**", "")
+                .replace("Narrator:", "")
+                .replace("*", "")
+                .strip()
+        )
+
+        if clean:
+            clean_lines.append(clean)
+
+    return " ".join(clean_lines)
+
+
+def get_arxiv_info(arxiv_url: str) -> dict:
+    """Extract arXiv ID and get paper metadata."""
+    # Extract arXiv ID from URL
+    match = re.search(r'arxiv\.org/abs/(\d+\.\d+)', arxiv_url)
+    if not match:
+        return None
+
+    arxiv_id = match.group(1)
+
+    # Get paper metadata using feedparser
+    api_url = f"http://export.arxiv.org/api/query?id_list={arxiv_id}"
+    feed = feedparser.parse(api_url)
+
+    if not feed.entries:
+        return None
+
+    entry = feed.entries[0]
+    title = entry.title.strip()
+
+    # Clean up title for filename
+    clean_title = re.sub(r'[^\w\s-]', '', title)
+    clean_title = re.sub(r'[-\s]+', '_', clean_title)
+
+    return {
+        'id': arxiv_id,
+        'title': clean_title[:100],  # Limit length
+        'pdf_url': f"https://arxiv.org/pdf/{arxiv_id}.pdf"
+    }
+
+
+def download_pdf(url: str, output_path: Path) -> bool:
+    """Download PDF from URL."""
+    try:
+        response = requests.get(url, stream=True)
+        if response.status_code == 200:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            return True
+    except Exception as e:
+        print(f"   ❌ Download failed: {e}")
+    return False
+
+
+def extract_text_from_pdf(pdf_path: str) -> str:
+    """Extract text content from PDF."""
+    text_content = []
+
+    with open(pdf_path, 'rb') as file:
+        pdf_reader = PyPDF2.PdfReader(file)
+
+        for page in pdf_reader.pages:
+            text = page.extract_text()
+            if text:
+                text_content.append(text)
+
+    full_text = '\n\n'.join(text_content)
+
+    # Remove references section
+    references_patterns = [
+        r'\n\s*References\s*\n.*',
+        r'\n\s*Bibliography\s*\n.*',
+        r'\n\s*Works Cited\s*\n.*',
+    ]
+
+    for pattern in references_patterns:
+        full_text = re.split(pattern, full_text, flags=re.IGNORECASE | re.DOTALL)[0]
+
+    return full_text[:MAX_TEXT_LENGTH]
+
+
+def generate_script(api_key: str, paper_text: str) -> str:
+    """Generate podcast script using Gemini."""
+    client = genai.Client(api_key=api_key)
+
+    prompt = f"""
+You are a podcast narrator explaining a research paper to an intelligent but non-expert audience.
+
+TASK:
+Convert the following research paper into a clear, engaging 8–10 minute spoken narration.
+
+STRICT FORMAT REQUIREMENTS:
+- Output ONLY the spoken narration text
+- Do NOT include music cues, sound effects, transitions, or stage directions
+- Do NOT include labels like “Narrator:” or formatting markers
+- Do NOT include headings, bullet points, or markdown
+- Write in complete, conversational sentences suitable for text-to-speech
+- The output should be plain text only
+
+CONTENT GUIDELINES:
+- Start with a motivating introduction
+- Clearly explain the problem and why it matters
+- Summarize the key ideas and results
+- Avoid equations unless absolutely necessary
+- Use intuitive analogies and explanations
+- End with implications and future research directions
+- Focus on the methodologies
+
+PAPER:
+{paper_text}
+"""
+
+    response = client.models.generate_content(
+        model=MODEL,
+        contents=prompt
+    )
+
+    return response.text
+
+
+def synthesize_audio(text: str, output_path: Path):
+    """Convert text to MP3 using chunked synthesis (handles long audio)."""
+    client = texttospeech.TextToSpeechClient()
+
+    MAX_CHARS = 4500
+    chunks = []
+    sentences = text.split('. ')
+    current_chunk = []
+    current_length = 0
+
+    for sentence in sentences:
+        sentence = sentence.strip() + '.'
+        if current_length + len(sentence) > MAX_CHARS and current_chunk:
+            chunks.append(' '.join(current_chunk))
+            current_chunk = []
+            current_length = 0
+        current_chunk.append(sentence)
+        current_length += len(sentence)
+
+    if current_chunk:
+        chunks.append(' '.join(current_chunk))
+
+    print(f"   Processing {len(chunks)} audio chunks...")
+
+    # Synthesize each chunk using plain text
+    audio_parts = []
+    for i, chunk in enumerate(chunks):
+        synthesis_input = texttospeech.SynthesisInput(text=chunk)
+        voice = texttospeech.VoiceSelectionParams(
+            language_code="en-US",
+            name=VOICE_NAME
+        )
+        audio_config = texttospeech.AudioConfig(
+            audio_encoding=texttospeech.AudioEncoding.MP3,
+            speaking_rate=SPEAKING_RATE
+        )
+
+        response = client.synthesize_speech(
+            input=synthesis_input,
+            voice=voice,
+            audio_config=audio_config
+        )
+        audio_parts.append(response.audio_content)
+        print(f"   ✓ Chunk {i+1}/{len(chunks)} complete")
+
+    # Combine audio parts
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "wb") as f:
+        for part in audio_parts:
+            f.write(part)
+
+    print(f"   ✓ Audio saved to: {output_path}")
+
+
+def get_new_links() -> list:
+    """Get new arXiv links that haven't been processed."""
+    # Read all links
+    if not Path(ARXIV_LINKS_FILE).exists():
+        print(f"❌ {ARXIV_LINKS_FILE} not found")
+        return []
+
+    with open(ARXIV_LINKS_FILE, 'r') as f:
+        all_links = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+
+    # Read processed links
+    processed = set()
+    if Path(PROCESSED_LINKS_FILE).exists():
+        with open(PROCESSED_LINKS_FILE, 'r') as f:
+            processed = set(line.strip() for line in f if line.strip() and not line.startswith('#'))
+
+    # Find new links
+    new_links = [link for link in all_links if link not in processed]
+    return new_links
+
+
+def mark_as_processed(link: str):
+    """Mark a link as processed."""
+    with open(PROCESSED_LINKS_FILE, 'a') as f:
+        f.write(f"{link}\n")
+
+
+def process_paper(arxiv_url: str, api_key: str):
+    """Process a single arXiv paper."""
+    print(f"\n{'='*80}")
+    print(f"📄 Processing: {arxiv_url}")
+    print('='*80)
+
+    # Get paper info
+    print("📋 Fetching paper metadata...")
+    info = get_arxiv_info(arxiv_url)
+    if not info:
+        print("   ❌ Failed to get paper info")
+        return False
+
+    print(f"   ✓ Title: {info['title']}")
+    print(f"   ✓ arXiv ID: {info['id']}")
+
+    # Download PDF
+    pdf_path = PDF_DIR / f"{info['title']}.pdf"
+    if not pdf_path.exists():
+        print(f"\n📥 Downloading PDF...")
+        if not download_pdf(info['pdf_url'], pdf_path):
+            print("   ❌ Download failed")
+            return False
+        print(f"   ✓ Downloaded to: {pdf_path}")
+    else:
+        print(f"\n📥 PDF already exists: {pdf_path}")
+
+    # Extract text
+    print(f"\n📄 Extracting text from PDF...")
+    paper_text = extract_text_from_pdf(str(pdf_path))
+    print(f"   ✓ Extracted {len(paper_text):,} characters")
+
+    # Generate script
+    print(f"\n🤖 Generating podcast script with {MODEL}...")
+    script = generate_script(api_key, paper_text)
+    print("   ✓ Script generated")
+
+    # Clean script
+    print("\n📝 Cleaning script...")
+    clean_text = clean_script(script)
+    print("   ✓ Script cleaned")
+
+    # Synthesize audio
+    audio_filename = f"{info['title']}_podcast.mp3"
+    audio_path = OUTPUT_DIR / audio_filename
+
+    print(f"\n🔊 Synthesizing audio...")
+    synthesize_audio(clean_text, audio_path)
+
+    # Summary
+    file_size = audio_path.stat().st_size / 1024 / 1024
+    print(f"\n{'='*80}")
+    print("✅ Done!")
+    print('='*80)
+    print(f"Audio file: {audio_path}")
+    print(f"File size: {file_size:.2f} MB")
+
+    return True
+
+
+# ============================================================================
+# Main Pipeline
+# ============================================================================
+
+def main():
+    """Process all new arXiv papers."""
+    print("="*80)
+    print("🎙️  arXiv Podcast Generator")
+    print("="*80)
+
+    # Load API key
+    load_dotenv()
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        print("❌ ERROR: GOOGLE_API_KEY not found in .env file")
+        exit(1)
+
+    # Get new links
+    new_links = get_new_links()
+
+    if not new_links:
+        print("\n✅ No new arXiv links to process")
+        print(f"Add links to {ARXIV_LINKS_FILE}")
+        return
+
+    print(f"\n📚 Found {len(new_links)} new paper(s) to process")
+
+    # Process each paper
+    for i, link in enumerate(new_links, 1):
+        print(f"\n[{i}/{len(new_links)}]")
+        try:
+            if process_paper(link, api_key):
+                mark_as_processed(link)
+                print(f"\n✓ Marked as processed: {link}")
+        except Exception as e:
+            print(f"\n❌ Error processing {link}: {e}")
+            continue
+
+    print(f"\n{'='*80}")
+    print(f"🎉 All done! Processed {len(new_links)} paper(s)")
+    print('='*80)
+
+
+if __name__ == "__main__":
+    main()

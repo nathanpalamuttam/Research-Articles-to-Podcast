@@ -1,6 +1,6 @@
 # Research Article Podcast Generator
 
-Automatically convert arXiv research papers into podcast MP3 files and publish them to your podcast feed.
+Automatically convert arXiv research papers into podcast MP3 files and publish them to your podcast feed on your phone.
 
 ## Features
 

@@ -1,3 +1,30 @@
+# Environment variables and secrets
+.env
+*.key
+*.pem
+*credentials*.json
+
+# Data and outputs
 downloads/
 outputs/
-.env
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+
+# Project specific
+processed_links.txt

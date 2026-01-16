@@ -4,11 +4,11 @@ Automatically convert arXiv research papers into podcast MP3 files and publish t
 
 ## Features
 
-- 📄 **Automated arXiv Processing**: Batch process multiple arXiv papers from a simple text file
-- 🤖 **AI Script Generation**: Uses Google Gemini to create engaging 8-10 minute podcast scripts
-- 🔊 **High-Quality TTS**: Google Cloud Text-to-Speech with professional voices
-- 📤 **Auto-Publishing**: Automatically uploads to Cloudflare R2 and updates RSS feed
-- 🎯 **Duplicate Prevention**: Tracks processed papers to avoid regeneration
+- **Automated arXiv Processing**: Batch process multiple arXiv papers from a simple text file
+- **AI Script Generation**: Uses Google Gemini to create engaging 8-10 minute podcast scripts
+- **High-Quality TTS**: Google Cloud Text-to-Speech with professional voices
+- **Auto-Publishing**: Automatically uploads to Cloudflare R2 and updates RSS feed
+- **Duplicate Prevention**: Tracks processed papers to avoid regeneration
 
 ## Setup
 

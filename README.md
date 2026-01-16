@@ -60,6 +60,7 @@ export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your/service-account-key.json"
    ```
 
 This URL serves:
+
 - MP3 files
 - RSS feed (`feed.xml`)
 - Episode HTML pages
@@ -76,6 +77,7 @@ This URL serves:
 5. Scope to your bucket (recommended)
 
 You will receive:
+
 - Access Key ID
 - Secret Access Key
 - Account Endpoint URL
@@ -133,6 +135,22 @@ python3 src/publish_episode.py --arxiv 2512.10858
 Your podcast appears immediately. Pull down to refresh if needed.
 
 **Note:** Searching by URL will not work — you must use "Follow by URL".
+
+#### Spotify
+
+Spotify requires a one-time registration of your RSS feed.
+
+1. Go to: https://podcasters.spotify.com
+2. Log in with your Spotify account
+3. Click **Add your podcast**
+4. Choose **I already have an RSS feed**
+5. Paste your feed URL:
+   ```
+   https://pub-xxxxxxxxxxxxxxxxxxxxxxxx.r2.dev/feed.xml
+   ```
+6. Complete the verification step (Spotify will send a confirmation email)
+
+Once verified, your podcast will be available on Spotify.
 
 ## File Structure
 

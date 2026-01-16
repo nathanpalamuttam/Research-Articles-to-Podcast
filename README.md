@@ -41,6 +41,47 @@ R2_PUBLIC_BASE=https://your-podcast-domain.com
 export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your/service-account-key.json"
 ```
 
+### 4. Set up Cloudflare R2 (Podcast Hosting)
+
+#### 4.1 Create an R2 Bucket
+
+1. Go to Cloudflare Dashboard
+2. Navigate to **Storage & Databases** → **R2**
+3. Click **Create bucket**
+4. Name it something like: `research-podcasts`
+
+#### 4.2 Enable Public Access
+
+1. Open your bucket
+2. Enable **Public Access**
+3. Cloudflare will generate a public URL like:
+   ```
+   https://pub-xxxxxxxxxxxxxxxxxxxxxxxx.r2.dev
+   ```
+
+This URL serves:
+- MP3 files
+- RSS feed (`feed.xml`)
+- Episode HTML pages
+- Podcast artwork
+
+#### 4.3 Create R2 API Credentials
+
+1. Go to **Storage & Databases** → **R2**
+2. Click **Manage R2 API Tokens**
+3. Click **Create User API Token**
+4. Set permissions:
+   - R2: Read
+   - R2: Write
+5. Scope to your bucket (recommended)
+
+You will receive:
+- Access Key ID
+- Secret Access Key
+- Account Endpoint URL
+
+**Note:** The secret key is shown only once.
+
 ## Usage
 
 ### Automated Workflow (Recommended)
@@ -59,13 +100,14 @@ python3 src/new_tts_generator.py
 ```
 
 This will automatically:
-1. ✅ Download PDFs for new arXiv papers
-2. ✅ Extract and clean text content
-3. ✅ Generate podcast scripts using Gemini
-4. ✅ Synthesize audio with Google Cloud TTS
-5. ✅ Upload MP3 to Cloudflare R2 storage
-6. ✅ Update podcast RSS feed
-7. ✅ Mark papers as processed
+
+1. Download PDFs for new arXiv papers
+2. Extract and clean text content
+3. Generate podcast scripts using Gemini
+4. Synthesize audio with Google Cloud TTS
+5. Upload MP3 to Cloudflare R2 storage
+6. Update podcast RSS feed
+7. Mark papers as processed
 
 ### Manual Publishing (if auto-publish fails)
 
@@ -74,6 +116,23 @@ If a podcast was generated but publishing failed, you can manually publish:
 ```bash
 python3 src/publish_episode.py --arxiv 2512.10858
 ```
+
+### Listening on Your Phone
+
+#### Apple Podcasts (Immediate)
+
+1. Open **Apple Podcasts**
+2. Go to **Library**
+3. Tap **⋯** → **Follow a Show by URL**
+4. Paste your feed URL:
+   ```
+   https://pub-xxxxxxxxxxxxxxxxxxxxxxxx.r2.dev/feed.xml
+   ```
+5. Tap **Follow**
+
+Your podcast appears immediately. Pull down to refresh if needed.
+
+**Note:** Searching by URL will not work — you must use "Follow by URL".
 
 ## File Structure
 
@@ -119,17 +178,20 @@ KEEP_N_DEFAULT = 30  # Keep last N episodes in feed
 ## How It Works
 
 ### 1. Paper Processing
+
 - Checks `arxiv_links.txt` for new URLs not in `processed_links.txt`
 - Downloads PDFs and extracts text (removes references, limits to 30k chars)
 - Uses Gemini to generate engaging 8-10 minute podcast scripts
 
 ### 2. Audio Generation
+
 - Cleans script (removes stage directions, formatting)
 - Chunks text to handle long content (max 4500 chars per chunk)
 - Synthesizes with Google Cloud TTS using high-quality voices
 - Saves MP3 to `outputs/audio/`
 
 ### 3. Publishing
+
 - Tags MP3 with metadata using ffmpeg
 - Uploads to Cloudflare R2 storage
 - Updates `data/episodes.json` with episode metadata
@@ -139,21 +201,27 @@ KEEP_N_DEFAULT = 30  # Keep last N episodes in feed
 ## Troubleshooting
 
 ### "GOOGLE_API_KEY not found"
+
 Add your API key to `.env` file.
 
 ### "Expected MP3 not found"
+
 The filename cleaning logic has changed. Check `outputs/audio/` for the actual filename.
 
 ### "Failed to publish episode"
+
 - Verify R2 credentials in `.env`
 - Check R2 bucket permissions
 - Run manually: `python3 src/publish_episode.py --arxiv <arxiv-id>`
 
 ### "429 RESOURCE_EXHAUSTED" (Gemini quota)
+
 You've hit API limits. Wait or enable billing at https://aistudio.google.com/
 
 ### Google Cloud TTS authentication error
+
 Set `GOOGLE_APPLICATION_CREDENTIALS`:
+
 ```bash
 export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account-key.json"
 ```

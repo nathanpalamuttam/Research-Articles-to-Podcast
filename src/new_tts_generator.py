@@ -119,10 +119,13 @@ def generate_script(api_key: str, paper_text: str) -> str:
     client = genai.Client(api_key=api_key)
 
     prompt = f"""
-You are a podcast narrator explaining a research paper to an intelligent but non-expert audience.
+You are a podcast narrator explaining a research paper to an intelligent, technically literate audience.
+Assume the listener is comfortable with biology, machine learning, and basic statistics, but is not
+an expert in this specific subfield.
 
 TASK:
-Convert the following research paper into a clear, engaging 8–10 minute spoken narration.
+Convert the following research paper into a spoken narration whose primary goal is deep understanding.
+The narration may be longer than 8–10 minutes if needed to fully explain the methods.
 
 STRICT FORMAT REQUIREMENTS:
 - Output ONLY the spoken narration text
@@ -132,13 +135,32 @@ STRICT FORMAT REQUIREMENTS:
 - Write in complete, conversational sentences suitable for text-to-speech
 - The output should be plain text only
 
-CONTENT GUIDELINES:
-- Start with a small introduction
-- Clearly explain the problem and why it matters
-- Summarize the key ideas and results
-- Focus on the methodologies
-- Use intuitive analogies and explanations
-- End with implications and future research directions
+CONTENT GUIDELINES (VERY IMPORTANT):
+- Begin with a brief introduction that frames the scientific problem and why it is difficult
+- Spend minimal time on high-level hype; prioritize technical substance
+- Explain the methodological pipeline in detail:
+  * how data was constructed and curated
+  * how targets were selected and split
+  * how blind evaluation was enforced
+  * what information models were and were not allowed to use
+- Explain the evaluation metrics precisely, including what they measure and why they were chosen
+- Walk through the major classes of approaches used in the paper:
+  * human-guided methods
+  * deep learning methods
+  * template-based modeling methods
+- For template-based modeling, explain how templates are found, ranked, aligned, and reused
+- Explain how top-performing models differed from baselines at an algorithmic level
+- Clearly describe the RNAPro model and how it integrates templates, MSAs, and neural networks
+- Discuss ablation results and what they reveal about where performance actually comes from
+- Be explicit about failure cases, limitations, and what the methods do NOT yet solve
+- Use analogies only when they clarify a technical mechanism, not as a substitute for explanation
+- Conclude with implications for RNA biology, benchmarking culture, and future model development
+
+STYLE:
+- Assume the listener wants to truly understand how the system works
+- It is acceptable to be technical, detailed, and dense
+- Avoid oversimplification
+- Maintain a natural spoken flow suitable for long-form listening
 
 PAPER:
 {paper_text}

@@ -10,13 +10,9 @@ from pathlib import Path
 from typing import Optional
 from xml.sax.saxutils import escape
 
-import feedparser
-
 import boto3
 from dotenv import load_dotenv
 
-# >>> CHANGE THIS IMPORT to wherever your function lives <<<
-# from your_module import get_arxiv_info
 from arxiv_utils import get_arxiv_info
 
 
@@ -113,13 +109,9 @@ def slugify(s: str, max_len: int = 120) -> str:
 
 
 def find_mp3_for_title(arxiv_id: str) -> Path:
-    # Extract arXiv ID from URL
-    api_url = f"http://export.arxiv.org/api/query?id_list={arxiv_id}"
-    feed = feedparser.parse(api_url)
-    if not feed.entries:
-        raise RuntimeError("No arXiv entry found")
-
-    title = feed.entries[0].title.strip()
+    # Use the shared utility to get paper info (supports both arXiv and bioRxiv)
+    info = get_arxiv_info(arxiv_id)
+    title = info['title']
 
     # Clean title - remove special chars but keep spaces to match new_tts_generator.py
     clean_title = re.sub(r'[^\w\s-]', '', title)
